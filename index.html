@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臺灣遊蕩犬分析</title>
+    <!-- 引入地圖與圖表庫 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; line-height: 1.6; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
+        header { background: #34495e; color: white; padding: 25px; text-align: center; border-radius: 10px; margin-bottom: 25px; }
+        .content-box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        #map { height: 500px; width: 100%; border-radius: 8px; }
+        .chart-wrapper { height: 600px; width: 100%; margin-top: 20px; }
+        .analysis-text { background: #fdf2e9; padding: 15px; border-left: 5px solid #e67e22; margin-top: 15px; font-size: 0.95em; }
+        footer { text-align: center; color: #7f8c8d; font-size: 0.85em; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>臺灣遊蕩犬分析</h1>
+    <p>作者：謝博宇</p>
+</header>
+
+<div class="content-box">
+    <h2>前言</h2>
+    <p>
+        本網頁旨在呈現 113 年臺灣各縣市遊蕩犬的分布現況，透過數據視覺化協助公眾理解人犬衝突熱點及收容管理壓力。精確的數據分析不僅能為資源投放提供科學依據，更具備提升動物福利與維護公共安全的社會價值。本分析對於政府制定結紮、收容政策具備參考意義，並呼籲大眾關注生命權益。本網頁數據完全引用自農業部動物保護資訊網之「113年各縣市遊蕩犬估計數調查結果」，人口數則參考內政部 112 年 12 月之統計資料。
+    </p>
+</div>
+
+<div class="content-box">
+    <h2>113 年各縣市遊蕩犬估計數分佈圖</h2>
+    <div id="map"></div>
+    <div class="analysis-text">
+        <strong>關鍵數字分析：</strong><br>
+        113 年全國遊蕩犬估計總數為 141,584 隻。數據顯示臺南市數量最高（19,990 隻），其次為嘉義縣（16,944 隻），中南部縣市普遍面臨較大的族群控制壓力，與北部都會地區（如臺北市 1,908 隻）形成鮮明對比。
+    </div>
+</div>
+
+<div class="content-box">
+    <h2>各縣市每百人遊蕩犬數排序圖</h2>
+    <div class="chart-wrapper">
+        <canvas id="dogBarChart"></canvas>
+    </div>
+    <div class="analysis-text">
+        <strong>關鍵數字分析：</strong><br>
+        依每百人比例觀察，前三名分別為臺東縣 (4.04)、嘉義縣 (3.50) 及花蓮縣 (2.20)。這反映出花東及農業縣市的人犬生活空間重疊度極高，與臺北市 (0.08) 等高度城市化地區存在巨大的管理環境差異。
+    </div>
+</div>
+
+<footer>
+    <p>數據來源：農業部動物保護資訊網、內政部社會經濟資料服務平台 [1, 2]</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // 來源數據 [1, 2]
+    const rawData = [
+        { name: "新北市", lat: 25.0143, lng: 121.4672, count: 9982, ratio: 0.25 },
+        { name: "臺北市", lat: 25.0330, lng: 121.5654, count: 1908, ratio: 0.08 },
+        { name: "臺中市", lat: 24.1477, lng: 120.6736, count: 8542, ratio: 0.30 },
+        { name: "臺南市", lat: 22.9997, lng: 120.2270, count: 19990, ratio: 1.07 },
+        { name: "高雄市", lat: 22.6273, lng: 120.3014, count: 10200, ratio: 0.37 },
+        { name: "桃園市", lat: 24.9936, lng: 121.3010, count: 7893, ratio: 0.34 },
+        { name: "宜蘭縣", lat: 24.7570, lng: 121.7530, count: 1630, ratio: 0.36 },
+        { name: "新竹縣", lat: 24.8388, lng: 121.0177, count: 2396, ratio: 0.41 },
+        { name: "苗栗縣", lat: 24.5601, lng: 120.8209, count: 7403, ratio: 1.38 },
+        { name: "彰化縣", lat: 24.0518, lng: 120.5161, count: 9313, ratio: 0.75 },
+        { name: "南投縣", lat: 23.9101, lng: 120.6960, count: 9644, ratio: 2.02 },
+        { name: "雲林縣", lat: 23.7092, lng: 120.4313, count: 4934, ratio: 0.75 },
+        { name: "嘉義縣", lat: 23.4518, lng: 120.2554, count: 16944, ratio: 3.50 },
+        { name: "屏東縣", lat: 22.6761, lng: 120.4885, count: 10024, ratio: 1.26 },
+        { name: "臺東縣", lat: 22.7584, lng: 121.1444, count: 8551, ratio: 4.04 },
+        { name: "花蓮縣", lat: 23.9772, lng: 121.6044, count: 6983, ratio: 2.20 },
+        { name: "基隆市", lat: 25.1283, lng: 121.7419, count: 3112, ratio: 0.86 },
+        { name: "新竹市", lat: 24.8138, lng: 120.9675, count: 516, ratio: 0.11 },
+        { name: "嘉義市", lat: 23.4791, lng: 120.4411, count: 906, ratio: 0.34 },
+        { name: "澎湖縣", lat: 23.5711, lng: 119.5793, count: 520, ratio: 0.48 },
+        { name: "金門縣", lat: 24.4361, lng: 118.3186, count: 167, ratio: 0.12 },
+        { name: "連江縣", lat: 26.1558, lng: 119.9398, count: 26, ratio: 0.19 }
+    ];
+
+    // 顏色定義函式
+    function getColorByCount(c) {
+        return c > 15000 ? '#800026' :
+               c > 10000 ? '#bd0026' :
+               c > 5000  ? '#e31a1c' :
+               c > 1000  ? '#fd8d3c' : '#fed976';
+    }
+
+    // 初始化地圖
+    const map = L.map('map').setView([23.7, 121], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    rawData.forEach(city => {
+        L.circleMarker([city.lat, city.lng], {
+            radius: Math.sqrt(city.count) / 10 + 5,
+            fillColor: getColorByCount(city.count),
+            color: "#000", weight: 1, opacity: 1, fillOpacity: 0.8
+        }).addTo(map)
+        .bindPopup(`<b>${city.name}</b><br>遊蕩犬數：${city.count}<br>每百人犬數：${city.ratio}`);
+    });
+
+    // 處理橫條圖數據：按 ratio 高到低排序
+    const sortedData = [...rawData].sort((a, b) => b.ratio - a.ratio);
+
+    // 初始化 Chart.js 橫條圖
+    const ctx = document.getElementById('dogBarChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sortedData.map(d => d.name),
+            datasets: [{
+                label: '每百人遊蕩犬數',
+                data: sortedData.map(d => d.ratio),
+                backgroundColor: sortedData.map(d => getColorByCount(d.count)), // 根據數量變色
+                borderColor: '#444',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ` 比例：${ctx.raw} (總數：${sortedData[ctx.dataIndex].count})`
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
